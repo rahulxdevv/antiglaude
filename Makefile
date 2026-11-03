@@ -1,4 +1,4 @@
-.PHONY: all setup start run serve stop status claude test tui panel setup-claude daemon-install daemon-status daemon-uninstall clean help
+.PHONY: all setup start run serve stop status claude test tui panel setup-claude daemon-install daemon-status daemon-uninstall build check-dist clean help
 
 PORT ?= 8080
 HOST ?= 127.0.0.1
@@ -68,6 +68,15 @@ stop:
 	@-lsof -ti :$(PORT) | xargs kill -9 2>/dev/null || true
 	@echo "Port $(PORT) freed."
 
+# Build distribution packages (wheel and sdist) with uv
+build: setup
+	@echo "Building distribution archives with uv..."
+	@$(UV) build
+
+# Verify built packages with twine
+check-dist: build
+	@$(UV) run twine check dist/*
+
 # Clean temporary files and caches
 clean:
 	@rm -rf $(VENV) .pytest_cache *.egg-info build dist
@@ -86,5 +95,8 @@ help:
 	@echo "  make claude           - Launch interactive Claude Code session connected to the bridge"
 	@echo "  make status           - Check token health and Google Cloud Code account status"
 	@echo "  make test             - Run automated unit and protocol tests"
+	@echo "  make build            - Build wheel and sdist distributions with uv"
+	@echo "  make check-dist       - Build and validate distribution archives with twine"
 	@echo "  make stop             - Stop the gateway running on port $(PORT)"
 	@echo "  make clean            - Remove virtual environment and build caches"
+

@@ -1,5 +1,6 @@
 # Antiglaude
 
+[![PyPI](https://img.shields.io/pypi/v/antiglaude?color=111111)](https://pypi.org/project/antiglaude/)
 [![CI](https://github.com/sksarvesh007/antiglaude/actions/workflows/ci.yml/badge.svg)](https://github.com/sksarvesh007/antiglaude/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/sksarvesh007/antiglaude?color=111111)](https://github.com/sksarvesh007/antiglaude/releases)
 [![Python](https://img.shields.io/badge/python-3.10+-111111.svg)](https://www.python.org/downloads/)
@@ -50,19 +51,49 @@ Interfacing external developer tooling with enterprise cloud backends introduces
 
 ## Quick Start
 
-The repository is configured for immediate execution via Astral's `uv` and GNU `make`. No manual virtual environment preparation is required:
+### Option A: Install from PyPI
+
+Install the CLI toolchain via `pip` or Astral's `uv`:
+
+```bash
+# Using pip
+pip install antiglaude
+
+# Or using uv tool
+uv tool install antiglaude
+
+# Or run instantly without installing
+uvx antiglaude start
+```
+
+Once installed, use the `antiglaude` CLI directly:
+
+```bash
+# Start the gateway server
+antiglaude start
+
+# Launch the live Terminal Control Panel
+antiglaude tui
+
+# Configure Claude Code system-wide (/model picker + default bridge)
+antiglaude setup-claude
+
+# Install macOS LaunchAgent daemon (auto-starts on boot)
+antiglaude daemon install
+```
+
+### Option B: Clone from Source
+
+For development or direct Makefile execution via Astral's `uv`:
 
 ```bash
 git clone https://github.com/sksarvesh007/antiglaude.git
 cd antiglaude
 
-# Bootstrap environment and start gateway on port 8080
+# Bootstrap virtual environment and start gateway on port 8080
 make start
-```
 
-To configure Claude Code system-wide and start the background daemon in one pass:
-
-```bash
+# Configure Claude Code system-wide and install macOS background daemon
 make setup-claude
 make daemon-install
 ```
