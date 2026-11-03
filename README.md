@@ -1,7 +1,7 @@
-# Antiglaude Bridge
+# Antiglaude
 
-[![CI](https://github.com/sksarvesh007/antiglaude-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/sksarvesh007/antiglaude-bridge/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/sksarvesh007/antiglaude-bridge?color=111111)](https://github.com/sksarvesh007/antiglaude-bridge/releases)
+[![CI](https://github.com/sksarvesh007/antiglaude/actions/workflows/ci.yml/badge.svg)](https://github.com/sksarvesh007/antiglaude/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/sksarvesh007/antiglaude?color=111111)](https://github.com/sksarvesh007/antiglaude/releases)
 [![Python](https://img.shields.io/badge/python-3.10+-111111.svg)](https://www.python.org/downloads/)
 [![uv](https://img.shields.io/badge/packaging-uv-111111.svg)](https://github.com/astral-sh/uv)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-111111.svg)](https://fastapi.tiangolo.com)
@@ -9,7 +9,7 @@
 [![OpenAI Compatible](https://img.shields.io/badge/OpenAI%20API-Compatible-111111.svg)](https://platform.openai.com)
 [![License](https://img.shields.io/badge/license-MIT-111111.svg)](https://opensource.org/licenses/MIT)
 
-A high-performance local protocol gateway and inference server. Antiglaude Bridge translates Anthropic Messages and OpenAI Chat Completions requests into Google Cloud Code and Gemini execution formats, enabling Claude Code CLI and standard AI toolchains to operate against upstream models including `claude-sonnet-4-6`, `claude-opus-4-6-thinking`, `gemini-3-flash`, and `gemini-2.5-pro`.
+A high-performance local protocol gateway and inference server. Antiglaude translates Anthropic Messages and OpenAI Chat Completions requests into Google Cloud Code and Gemini execution formats, enabling Claude Code CLI and standard AI toolchains to operate against upstream models including `claude-sonnet-4-6`, `claude-opus-4-6-thinking`, `gemini-3-flash`, and `gemini-2.5-pro`.
 
 ---
 
@@ -53,8 +53,8 @@ Interfacing external developer tooling with enterprise cloud backends introduces
 The repository is configured for immediate execution via Astral's `uv` and GNU `make`. No manual virtual environment preparation is required:
 
 ```bash
-git clone https://github.com/sksarvesh007/antiglaude-bridge.git
-cd antiglaude-bridge
+git clone https://github.com/sksarvesh007/antiglaude.git
+cd antiglaude
 
 # Bootstrap environment and start gateway on port 8080
 make start
