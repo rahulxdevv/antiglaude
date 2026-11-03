@@ -26,13 +26,13 @@ jobs:
       - name: Set up Python 3.12
         run: uv python install 3.12
 
-      - name: Install dependencies
+      - name: Create virtual environment and install dependencies
         run: |
-          uv pip install -e . --system
-          uv pip install pytest pytest-asyncio httpx --system
+          uv venv --python 3.12
+          uv pip install -e ".[dev]" pytest pytest-asyncio httpx
 
       - name: Run unit & protocol tests
-        run: python -m pytest tests/ -v
+        run: uv run pytest tests/ -v
 
   publish:
     name: Build & Publish to PyPI
@@ -54,9 +54,6 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-
-      - name: Set up Python 3.12
-        run: uv python install 3.12
 
       - name: Build distributions
         run: uv build
