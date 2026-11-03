@@ -83,10 +83,11 @@ def main():
     # status
     subparsers.add_parser("status", help="Check bridge and token health")
 
-    # start
-    start_p = subparsers.add_parser("start", help="Start the gateway server")
-    start_p.add_argument("--host", default=DEFAULT_CONFIG.host, help="Host to bind")
-    start_p.add_argument("--port", type=int, default=DEFAULT_CONFIG.port, help="Port to bind")
+    # start / serve
+    for name in ("start", "serve"):
+        p = subparsers.add_parser(name, help="Start the Anthropic & OpenAI compatible gateway server")
+        p.add_argument("--host", default=DEFAULT_CONFIG.host, help="Host to bind")
+        p.add_argument("--port", type=int, default=DEFAULT_CONFIG.port, help="Port to bind")
 
     # claude
     claude_p = subparsers.add_parser("claude", help="Run Claude Code through the bridge")
@@ -99,7 +100,7 @@ def main():
     args = parser.parse_args()
     if args.command == "status":
         cmd_status(args)
-    elif args.command == "start":
+    elif args.command in ("start", "serve"):
         cmd_start(args)
     elif args.command == "claude":
         cmd_claude(args)

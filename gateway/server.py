@@ -20,7 +20,16 @@ from gateway.protocol.anthropic_models import (
     ModelItem,
     ModelsResponse,
 )
+from gateway.protocol.openai_models import (
+    OpenAIChatCompletionRequest,
+    OpenAIChatCompletionResponse,
+)
 from gateway.providers.cloudcode_provider import cloudcode_provider
+from gateway.translation.openai_converter import (
+    convert_anthropic_to_openai_response,
+    convert_openai_to_anthropic,
+    transform_anthropic_sse_to_openai,
+)
 from gateway.translation.response_converter import StreamParser
 
 
@@ -161,7 +170,10 @@ async def create_message(
     try:
         if request.stream:
             # Return SSE stream with observer tracking
-            parser = StreamParser(requested_model=request.model)
+            parser = StreamParser(
+                requested_model=request.model,
+                has_safeguards=bool(request.safeguards),
+            )
 
             async def event_generator():
                 async for event in cloudcode_provider.stream_messages(request, parser=parser):
@@ -221,6 +233,80 @@ async def count_tokens(request: AnthropicMessagesRequest):
     # 1 token ~= 4 chars heuristic for token counting endpoint
     estimated_tokens = max(1, total_chars // 4)
     return {"input_tokens": estimated_tokens}
+
+
+@app.post("/v1/chat/completions")
+@app.post("/chat/completions")
+async def chat_completions(request: OpenAIChatCompletionRequest):
+    """OpenAI-compatible Chat Completions endpoint."""
+    logger.info(
+        "Received /v1/chat/completions request: model=%s, messages=%d, stream=%s",
+        request.model,
+        len(request.messages),
+        request.stream,
+    )
+    anthropic_req = convert_openai_to_anthropic(request)
+
+    start_time = time.time()
+    trace_id = f"trace-oa-{uuid.uuid4().hex[:16]}"
+
+    def record_oa_telemetry(in_tok: int, out_tok: int, status_code: int = 200):
+        try:
+            from antigravity_observer.storage.observer_db import ObserverDatabase
+            db = ObserverDatabase()
+            latency = (time.time() - start_time) * 1000.0
+            db.record_request({
+                "trace_id": trace_id,
+                "conversation_id": "openai-session",
+                "endpoint": "/v1/chat/completions",
+                "operation": "chat_inference",
+                "model": request.model,
+                "prompt_tokens": in_tok,
+                "output_tokens": out_tok,
+                "total_tokens": in_tok + out_tok,
+                "latency_ms": latency,
+                "status_code": status_code,
+                "metadata": {"client": "openai-compat", "stream": request.stream},
+            })
+        except Exception:
+            pass
+
+    try:
+        if request.stream:
+            # Stream using Anthropic stream under the hood, converted to OpenAI SSE chunks
+            parser = StreamParser(requested_model=anthropic_req.model)
+            anthropic_stream = cloudcode_provider.stream_messages(anthropic_req, parser=parser)
+
+            async def openai_chunk_generator():
+                async for chunk in transform_anthropic_sse_to_openai(anthropic_stream, request.model):
+                    yield chunk
+                record_oa_telemetry(parser.input_tokens, parser.output_tokens, 200)
+
+            return StreamingResponse(
+                openai_chunk_generator(),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no",
+                },
+            )
+        else:
+            anthropic_resp = await cloudcode_provider.complete_messages(anthropic_req)
+            openai_resp = convert_anthropic_to_openai_response(anthropic_resp)
+            openai_resp.model = request.model
+            in_tok = anthropic_resp.usage.input_tokens if anthropic_resp.usage else 0
+            out_tok = anthropic_resp.usage.output_tokens if anthropic_resp.usage else 0
+            record_oa_telemetry(in_tok, out_tok, 200)
+            return JSONResponse(content=openai_resp.model_dump())
+
+    except Exception as e:
+        record_oa_telemetry(0, 0, 500)
+        logger.exception("Error processing /v1/chat/completions: %s", e)
+        raise HTTPException(
+            status_code=500,
+            detail={"error": {"message": str(e), "type": "server_error"}},
+        )
 
 
 def start_server():

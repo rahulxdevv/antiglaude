@@ -20,8 +20,9 @@ logger = logging.getLogger("gateway.response_converter")
 class StreamParser:
     """Parses incoming Google SSE chunks into Anthropic SSE events."""
 
-    def __init__(self, requested_model: str):
+    def __init__(self, requested_model: str, has_safeguards: bool = False):
         self.requested_model = requested_model
+        self.has_safeguards = has_safeguards
         self.message_id = f"msg_{uuid.uuid4().hex}"
         self.has_emitted_start = False
         self.block_index = 0
@@ -31,6 +32,7 @@ class StreamParser:
         self.output_tokens = 0
         self.cache_read_tokens = 0
         self.stop_reason: Optional[str] = None
+        self.safeguard_results: Optional[List[Dict[str, Any]]] = None
 
         # For non-streaming accumulation
         self.accumulated_content: List[Dict[str, Any]] = []
@@ -233,12 +235,32 @@ class StreamParser:
             events.append(content_block_stop_event(self.block_index))
             self.current_block_type = None
 
+        # Generate safeguard_results if client requested safeguards
+        if self.has_safeguards:
+            tool_uses_map: Dict[str, Any] = {}
+            for block in self.accumulated_content:
+                if block.get("type") == "tool_use":
+                    t_id = block.get("id")
+                    if t_id:
+                        tool_uses_map[t_id] = {"type": "evaluated", "outcome": "not_flagged"}
+
+            self.safeguard_results = [
+                {
+                    "type": "dangerous_tool_use",
+                    "status": {
+                        "type": "available",
+                        "tool_uses": tool_uses_map,
+                    },
+                }
+            ]
+
         # Emit message_delta
         events.append(
             message_delta_event(
                 stop_reason=self.stop_reason or "end_turn",
                 output_tokens=self.output_tokens,
                 cache_read_tokens=self.cache_read_tokens,
+                safeguard_results=self.safeguard_results,
             )
         )
 

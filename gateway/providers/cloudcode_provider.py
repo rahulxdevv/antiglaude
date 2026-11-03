@@ -73,7 +73,10 @@ class CloudCodeProvider(BaseProvider):
         ]
 
         if parser is None:
-            parser = StreamParser(requested_model=request.model)
+            parser = StreamParser(
+                requested_model=request.model,
+                has_safeguards=bool(request.safeguards),
+            )
 
         max_retries = 3
         last_error = None
@@ -167,7 +170,10 @@ class CloudCodeProvider(BaseProvider):
         self, request: AnthropicMessagesRequest
     ) -> AnthropicMessagesResponse:
         """Accumulate stream into non-streaming AnthropicMessagesResponse."""
-        parser = StreamParser(requested_model=request.model)
+        parser = StreamParser(
+            requested_model=request.model,
+            has_safeguards=bool(request.safeguards),
+        )
         async for _ in self.stream_messages(request, parser=parser):
             pass
 
@@ -181,6 +187,7 @@ class CloudCodeProvider(BaseProvider):
                 output_tokens=parser.output_tokens,
                 cache_read_input_tokens=parser.cache_read_tokens,
             ),
+            safeguard_results=parser.safeguard_results,
         )
 
 

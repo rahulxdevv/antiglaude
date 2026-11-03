@@ -94,6 +94,7 @@ class AnthropicMessagesRequest(BaseModel):
     tools: Optional[List[ToolDefinition]] = None
     tool_choice: Optional[Union[str, Dict[str, Any]]] = None
     thinking: Optional[ThinkingConfig] = None
+    safeguards: Optional[Any] = None
 
 
 class UsageMetadata(BaseModel):
@@ -114,6 +115,7 @@ class AnthropicMessagesResponse(BaseModel):
     stop_reason: Optional[str] = "end_turn"
     stop_sequence: Optional[str] = None
     usage: UsageMetadata = Field(default_factory=UsageMetadata)
+    safeguard_results: Optional[List[Dict[str, Any]]] = None
 
 
 class ModelItem(BaseModel):

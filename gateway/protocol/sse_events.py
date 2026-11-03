@@ -1,7 +1,7 @@
 """Anthropic Server-Sent Events (SSE) formatters."""
 
 import json
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 
 def format_sse(event_type: str, data: Dict[str, Any]) -> str:
@@ -71,16 +71,21 @@ def message_delta_event(
     stop_reason: str = "end_turn",
     output_tokens: int = 0,
     cache_read_tokens: int = 0,
+    safeguard_results: Optional[list] = None,
 ) -> str:
     """Build message_delta SSE event."""
+    delta: Dict[str, Any] = {
+        "stop_reason": stop_reason,
+        "stop_sequence": None,
+    }
+    if safeguard_results is not None:
+        delta["safeguard_results"] = safeguard_results
+
     data = {
         "type": "message_delta",
-        "delta": {
-            "stop_reason": stop_reason,
-            "stop_sequence": None,
-        },
+        "delta": delta,
         "usage": {
-            "output_tokens": outputTokens if "outputTokens" in locals() else output_tokens,
+            "output_tokens": output_tokens,
             "cache_read_input_tokens": cache_read_tokens,
             "cache_creation_input_tokens": 0,
         },
