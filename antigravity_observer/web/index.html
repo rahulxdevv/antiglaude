@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Antigravity Observer | Developer Observability Platform</title>
+  <meta name="description" content="Standalone developer observability platform for monitoring AI workflows, LLM requests, token usage, and execution timelines in Antigravity IDE.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app" class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="brand">
+          <div class="brand-icon">
+            <span class="orbit-ring"></span>
+            <span class="core-dot"></span>
+          </div>
+          <div class="brand-text">
+            <h1 class="brand-title">ANTIGRAVITY OBSERVER</h1>
+            <span class="brand-subtitle">AI Workflow & LLM Telemetry</span>
+          </div>
+        </div>
+
+        <div id="connectionStatus" class="connection-pill status-loading">
+          <span class="pulse-indicator"></span>
+          <span class="status-label">Detecting Runtime...</span>
+        </div>
+      </div>
+
+      <div class="header-center">
+        <div class="search-box">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="globalSearchInput" placeholder="Filter requests, traces, tools, thinking...">
+        </div>
+      </div>
+
+      <div class="header-right">
+        <div id="quotaBadge" class="quota-pill" title="Live Prompt Credits">
+          <span class="quota-icon">⚡</span>
+          <span id="promptCreditsLabel">Credits: ...</span>
+        </div>
+
+        <div class="export-dropdown-container">
+          <button id="exportBtn" class="btn btn-secondary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            Export Diagnostics
+          </button>
+          <div id="exportMenu" class="dropdown-menu hidden">
+            <a href="/api/export/markdown" download class="dropdown-item">
+              <span class="item-title">Executive Report</span>
+              <span class="item-desc">Markdown (.md) with tables & timeline</span>
+            </a>
+            <a href="/api/export/json" download class="dropdown-item">
+              <span class="item-title">Diagnostic Bundle</span>
+              <span class="item-desc">Raw JSON archive for REA & replay</span>
+            </a>
+          </div>
+        </div>
+
+        <button id="refreshBtn" class="btn btn-icon" title="Refresh Telemetry">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Top KPI Grid -->
+    <section class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Active Model & Reason Effort</div>
+        <div class="kpi-value-row">
+          <span id="kpiModel" class="kpi-value highlight-cyan">Gemini 3.8 Flash</span>
+          <span class="badge badge-accent">High Effort</span>
+        </div>
+        <div id="kpiModelId" class="kpi-subtext">Backend: gemini-3.8-flash-n</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-label">Peak Prompt Context</div>
+        <div class="kpi-value-row">
+          <span id="kpiPeakPrompt" class="kpi-value">0</span>
+          <span class="kpi-unit">tokens</span>
+        </div>
+        <div class="kpi-subtext">Current window memory context</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-label">Output & Reasoning Tokens</div>
+        <div class="kpi-value-row">
+          <span id="kpiTokensRow" class="kpi-value highlight-violet">0</span>
+          <span class="kpi-unit">out / think</span>
+        </div>
+        <div id="kpiThinkingSubtext" class="kpi-subtext">Cumulative across turns</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-label">Execution Progression</div>
+        <div class="kpi-value-row">
+          <span id="kpiTurns" class="kpi-value">0</span>
+          <span class="kpi-unit">turns / steps</span>
+        </div>
+        <div id="kpiToolsSubtext" class="kpi-subtext">0 tool calls executed</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-label">Quota Capacity (5h / Weekly)</div>
+        <div class="quota-bars">
+          <div class="quota-bar-row">
+            <span class="bar-name">Gemini Weekly:</span>
+            <div class="progress-track"><div id="geminiWeeklyBar" class="progress-fill" style="width: 100%;"></div></div>
+            <span id="geminiWeeklyVal" class="bar-val">100%</span>
+          </div>
+          <div class="quota-bar-row">
+            <span class="bar-name">Gemini 5h:</span>
+            <div class="progress-track"><div id="gemini5hBar" class="progress-fill" style="width: 100%;"></div></div>
+            <span id="gemini5hVal" class="bar-val">100%</span>
+          </div>
+        </div>
+        <div id="kpiQuotaReset" class="kpi-subtext">Reset: Checking...</div>
+      </div>
+    </section>
+
+    <!-- Main Content Area with Navigation Tabs -->
+    <main class="main-content">
+      <nav class="nav-tabs" role="tablist">
+        <button class="nav-tab active" data-tab="timeline">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+          Execution Waterfall & Timeline
+        </button>
+        <button class="nav-tab" data-tab="requests">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+          LLM Request Observability
+        </button>
+        <button class="nav-tab" data-tab="analytics">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+          Analytics & Performance
+        </button>
+        <button class="nav-tab" data-tab="conversations">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          Conversations Explorer
+        </button>
+        <button class="nav-tab" data-tab="diagnostics">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+          Runtime Diagnostics & Raw Logs
+        </button>
+      </nav>
+
+      <!-- TAB 1: Timeline Waterfall -->
+      <section id="tab-timeline" class="tab-pane active">
+        <div class="pane-header">
+          <div class="pane-title-group">
+            <h2 class="pane-title">Multi-Step Agent Execution Waterfall</h2>
+            <p class="pane-desc">Visualizes the complete lifecycle of AI reasoning, tool calls, stdout returns, and token consumption.</p>
+          </div>
+          <div class="pane-actions">
+            <span id="timelineStats" class="text-muted">Loading steps...</span>
+            <div class="filter-group">
+              <label><input type="checkbox" id="filterThinkingOnly"> Reasoning Turns Only</label>
+              <label><input type="checkbox" id="filterToolsOnly"> Tool Invocations Only</label>
+            </div>
+          </div>
+        </div>
+
+        <div id="timelineContainer" class="timeline-stream">
+          <!-- Populated dynamically -->
+        </div>
+      </section>
+
+      <!-- TAB 2: Requests Observability -->
+      <section id="tab-requests" class="tab-pane">
+        <div class="pane-header">
+          <div class="pane-title-group">
+            <h2 class="pane-title">Observed LLM API Requests</h2>
+            <p class="pane-desc">Real-time HTTP/SSE stream telemetry from Google CloudCode and internal Language Server.</p>
+          </div>
+          <div class="pane-actions">
+            <span id="requestsCountBadge" class="badge">0 requests</span>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table" id="requestsTable">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Endpoint & Service</th>
+                <th>Mode</th>
+                <th>Trace ID</th>
+                <th>Response ID</th>
+                <th>Model</th>
+                <th>Prompt Tokens</th>
+                <th>Output Tokens</th>
+                <th>Reasoning Tokens</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="requestsTableBody">
+              <!-- Populated dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TAB 3: Analytics & Performance -->
+      <section id="tab-analytics" class="tab-pane">
+        <div class="pane-header">
+          <div class="pane-title-group">
+            <h2 class="pane-title">Model Usage & Token Analytics</h2>
+            <p class="pane-desc">Context expansion dynamics, tool distribution, and quota consumption rates.</p>
+          </div>
+        </div>
+
+        <div class="analytics-charts-grid">
+          <div class="chart-card">
+            <h3 class="chart-title">Context Token Accumulation Curve</h3>
+            <div class="chart-canvas-container">
+              <canvas id="tokenGrowthChart" width="600" height="240"></canvas>
+            </div>
+            <div class="chart-legend">
+              <span class="legend-item"><span class="legend-color cyan"></span> Prompt Tokens</span>
+              <span class="legend-item"><span class="legend-color violet"></span> Output Tokens</span>
+              <span class="legend-item"><span class="legend-color amber"></span> Reasoning Tokens</span>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <h3 class="chart-title">Tool Invocations Distribution</h3>
+            <div class="chart-canvas-container">
+              <canvas id="toolDistributionChart" width="600" height="240"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="analytics-summary-table-card">
+          <h3 class="card-subtitle">Active Conversation Breakdown</h3>
+          <div id="analyticsSummaryContent" class="analytics-content-grid">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: Conversations Archive -->
+      <section id="tab-conversations" class="tab-pane">
+        <div class="pane-header">
+          <div class="pane-title-group">
+            <h2 class="pane-title">Conversations Explorer</h2>
+            <p class="pane-desc">Browse local SQLite trajectory databases and brain transcripts stored on your workstation.</p>
+          </div>
+        </div>
+
+        <div class="conversations-grid" id="conversationsList">
+          <!-- Populated dynamically -->
+        </div>
+      </section>
+
+      <!-- TAB 5: Runtime Diagnostics -->
+      <section id="tab-diagnostics" class="tab-pane">
+        <div class="pane-header">
+          <div class="pane-title-group">
+            <h2 class="pane-title">Antigravity Runtime & Process Inspection</h2>
+            <p class="pane-desc">Verifiable diagnostics inspecting local sockets, arguments, CSRF tokens, and Language Server logs.</p>
+          </div>
+        </div>
+
+        <div class="diagnostics-grid">
+          <div class="diag-card">
+            <h3 class="diag-title">Process & Network Telemetry</h3>
+            <div id="diagProcessInfo" class="diag-code-block">Loading...</div>
+          </div>
+
+          <div class="diag-card">
+            <h3 class="diag-title">Language Server HTTPS Connect RPC</h3>
+            <div id="diagRpcInfo" class="diag-code-block">Loading...</div>
+          </div>
+        </div>
+
+        <div class="diag-log-viewer">
+          <div class="log-viewer-header">
+            <h3>Recent Language Server Event Log (ls-main.log)</h3>
+            <span class="text-muted">Live microsecond telemetry</span>
+          </div>
+          <pre id="diagLogContent" class="log-pre">Loading log output...</pre>
+        </div>
+      </section>
+    </main>
+
+    <!-- Slide-Out Inspection Drawer -->
+    <aside id="inspectorDrawer" class="inspector-drawer hidden">
+      <div class="drawer-header">
+        <div class="drawer-title-group">
+          <span class="badge badge-accent" id="drawerBadge">DETAILS</span>
+          <h3 id="drawerTitle" class="drawer-title">Inspection</h3>
+        </div>
+        <button id="closeDrawerBtn" class="btn btn-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+
+      <div class="drawer-body" id="drawerContent">
+        <!-- Dynamic inspection content -->
+      </div>
+    </aside>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
