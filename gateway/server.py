@@ -4,6 +4,7 @@ import asyncio
 import logging
 import os
 import time
+import uuid
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, Header, HTTPException, Query, Request
@@ -20,6 +21,8 @@ from gateway.protocol.anthropic_models import (
     ModelsResponse,
 )
 from gateway.providers.cloudcode_provider import cloudcode_provider
+from gateway.translation.response_converter import StreamParser
+
 
 # Configure logging
 logging.basicConfig(
@@ -130,12 +133,40 @@ async def create_message(
         len(request.tools) if request.tools else 0,
     )
 
+    start_time = time.time()
+    trace_id = f"trace-{uuid.uuid4().hex[:16]}"
+    conversation_id = x_claude_code_session_id or "claude-session"
+
+    def record_telemetry(in_tok: int, out_tok: int, status_code: int = 200):
+        try:
+            from antigravity_observer.storage.observer_db import ObserverDatabase
+            db = ObserverDatabase()
+            latency = (time.time() - start_time) * 1000.0
+            db.record_request({
+                "trace_id": trace_id,
+                "conversation_id": conversation_id,
+                "endpoint": "/v1/messages",
+                "operation": "chat_inference",
+                "model": request.model,
+                "prompt_tokens": in_tok,
+                "output_tokens": out_tok,
+                "total_tokens": in_tok + out_tok,
+                "latency_ms": latency,
+                "status_code": status_code,
+                "metadata": {"client": "claude-code", "stream": request.stream},
+            })
+        except Exception as te:
+            logger.debug("Failed recording observer telemetry: %s", te)
+
     try:
         if request.stream:
-            # Return SSE stream
+            # Return SSE stream with observer tracking
+            parser = StreamParser(requested_model=request.model)
+
             async def event_generator():
-                async for event in cloudcode_provider.stream_messages(request):
+                async for event in cloudcode_provider.stream_messages(request, parser=parser):
                     yield event
+                record_telemetry(parser.input_tokens, parser.output_tokens, 200)
 
             return StreamingResponse(
                 event_generator(),
@@ -149,14 +180,19 @@ async def create_message(
         else:
             # Non-streaming response
             response = await cloudcode_provider.complete_messages(request)
+            in_tok = response.usage.input_tokens if response.usage else 0
+            out_tok = response.usage.output_tokens if response.usage else 0
+            record_telemetry(in_tok, out_tok, 200)
             return JSONResponse(content=response.model_dump())
 
     except Exception as e:
+        record_telemetry(0, 0, 500)
         logger.exception("Error processing /v1/messages: %s", e)
         raise HTTPException(
             status_code=500,
             detail={"type": "api_error", "message": str(e)},
         )
+
 
 
 @app.post("/v1/messages/count_tokens")

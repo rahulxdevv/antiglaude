@@ -1,0 +1,75 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "antiglaude-bridge"
+version = "1.0.0"
+description = "Production compatibility gateway bridge & developer observability platform connecting Claude Code CLI with Google Antigravity & Gemini inference models via Anthropic Messages API"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Sarvesh", email = "sksarvesh@users.noreply.github.com"}
+]
+keywords = [
+    "claude",
+    "claude-code",
+    "antigravity",
+    "google-antigravity",
+    "gemini",
+    "anthropic",
+    "anthropic-api",
+    "claude-proxy",
+    "claude-code-router",
+    "llm-gateway",
+    "ai-agent",
+    "developer-tools",
+    "observability",
+    "claude-sonnet",
+    "reverse-proxy"
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Code Generators",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+    "Environment :: Console",
+]
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.28.0",
+    "httpx>=0.27.0",
+    "pydantic>=2.6.0",
+    "pydantic-settings>=2.2.0",
+    "cryptography>=42.0.0",
+    "certifi>=2024.2.2",
+    "rich>=13.7.0",
+    "typer>=0.9.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/sksarvesh007/antiglaude-bridge#readme"
+Documentation = "https://github.com/sksarvesh007/antiglaude-bridge#readme"
+Repository = "https://github.com/sksarvesh007/antiglaude-bridge.git"
+Issues = "https://github.com/sksarvesh007/antiglaude-bridge/issues"
+Changelog = "https://github.com/sksarvesh007/antiglaude-bridge/releases"
+
+[project.scripts]
+antiglaude = "gateway.cli:main"
+antigravity-observer = "antigravity_observer.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["gateway*", "antigravity_observer*"]

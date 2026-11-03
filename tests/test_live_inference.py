@@ -3,6 +3,14 @@
 import pytest
 from fastapi.testclient import TestClient
 from gateway.server import app
+from gateway.auth.token_manager import token_manager
+
+# Skip if running in environment without Antigravity credentials
+try:
+    if not token_manager.get_valid_token():
+        pytest.skip("No Antigravity credentials found in local environment", allow_module_level=True)
+except Exception:
+    pytest.skip("No Antigravity credentials found in local environment", allow_module_level=True)
 
 client = TestClient(app)
 
