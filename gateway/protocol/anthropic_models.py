@@ -124,6 +124,7 @@ class ModelItem(BaseModel):
     created: int = 1700000000
     owned_by: str = "anthropic"
     display_name: Optional[str] = None
+    description: Optional[str] = None
 
 
 class ModelsResponse(BaseModel):

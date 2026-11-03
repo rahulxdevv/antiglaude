@@ -36,3 +36,14 @@ def test_count_tokens_endpoint():
     data = response.json()
     assert "input_tokens" in data
     assert data["input_tokens"] > 0
+
+
+def test_stats_endpoint():
+    response = client.get("/stats")
+    assert response.status_code == 200
+    data = response.json()
+    assert "daily_limit" in data
+    assert "requests_today" in data
+    assert "requests_remaining" in data
+    assert "account" in data
+    assert "recent_requests" in data

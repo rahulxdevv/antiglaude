@@ -65,8 +65,25 @@ class ProjectResolver:
                         paid_tier = data.get("paidTier", {})
                         current_tier = data.get("currentTier", {})
                         tier_id = paid_tier.get("id") or current_tier.get("id", "free-tier")
+                        tier_name = paid_tier.get("name") or current_tier.get("name", "Google AI Pro")
+                        upgrade_text = paid_tier.get("upgradeSubscriptionText") or current_tier.get("upgradeSubscriptionText")
+                        credits = paid_tier.get("availableCredits", [])
                         tier = tier_id
-                        logger.info("Discovered Project: %s, Tier: %s", project_id, tier)
+                        logger.info("Discovered Project: %s, Tier: %s (%s)", project_id, tier, tier_name)
+
+                        try:
+                            from gateway.telemetry.stats_tracker import stats_tracker
+                            stats_tracker.update_quota_info(
+                                account_email=token_manager.account_email,
+                                project_id=project_id,
+                                tier_id=tier_id,
+                                tier_name=tier_name,
+                                upgrade_text=upgrade_text,
+                                available_credits=credits,
+                            )
+                        except Exception as ste:
+                            logger.debug("Failed updating stats tracker quota info: %s", ste)
+
                         break
                     else:
                         logger.debug("loadCodeAssist at %s returned status %d", url, resp.status_code)

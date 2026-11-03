@@ -1,117 +1,258 @@
-# Antiglaude Bridge ⚡
+# Antiglaude Bridge
 
 [![CI](https://github.com/sksarvesh007/antiglaude-bridge/actions/workflows/ci.yml/badge.svg)](https://github.com/sksarvesh007/antiglaude-bridge/actions/workflows/ci.yml)
-[![GitHub Release](https://img.shields.io/github/v/release/sksarvesh007/antiglaude-bridge?include_prereleases&color=blue)](https://github.com/sksarvesh007/antiglaude-bridge/releases)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![uv](https://img.shields.io/badge/package%20manager-uv-de5fe9.svg)](https://github.com/astral-sh/uv)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg)](https://fastapi.tiangolo.com)
-[![Claude Code](https://img.shields.io/badge/Claude%20Code-Compatible-6366f1.svg)](https://code.claude.com)
-[![OpenAI Compatible](https://img.shields.io/badge/OpenAI%20API-Compatible-412991.svg)](https://platform.openai.com)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Release](https://img.shields.io/github/v/release/sksarvesh007/antiglaude-bridge?color=111111)](https://github.com/sksarvesh007/antiglaude-bridge/releases)
+[![Python](https://img.shields.io/badge/python-3.10+-111111.svg)](https://www.python.org/downloads/)
+[![uv](https://img.shields.io/badge/packaging-uv-111111.svg)](https://github.com/astral-sh/uv)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-111111.svg)](https://fastapi.tiangolo.com)
+[![Claude Code](https://img.shields.io/badge/Claude%20Code-Compatible-111111.svg)](https://code.claude.com)
+[![OpenAI Compatible](https://img.shields.io/badge/OpenAI%20API-Compatible-111111.svg)](https://platform.openai.com)
+[![License](https://img.shields.io/badge/license-MIT-111111.svg)](https://opensource.org/licenses/MIT)
 
-A high-performance local AI gateway and **OpenRouter-style LLM inference server** that connects **Claude Code CLI** and any **OpenAI-compatible application** to upstream **Google Cloud Code & Gemini models** (`claude-sonnet-4-6`, `claude-opus-4-6-thinking`, `gemini-3-flash`, `gemini-2.5-pro`).
-
----
-
-## 📑 Table of Contents
-- [⚡ Quick Start in 1 Command](#-quick-start-in-1-command)
-- [✨ Core Capabilities](#-core-capabilities)
-- [🌐 OpenRouter-Style OpenAI Endpoint (Build AI Apps)](#-openrouter-style-openai-endpoint-build-ai-apps)
-  - [Python OpenAI SDK](#1-python-openai-sdk)
-  - [Streaming Example](#2-streaming-example)
-  - [cURL Request](#3-curl-request)
-  - [Supported Model Codenames](#4-supported-model-codenames)
-  - [Compatible Frameworks (LangChain, LlamaIndex, Cursor, Continue)](#5-compatible-frameworks)
-- [💻 Claude Code Integration](#-claude-code-integration)
-  - [One-Command Launch](#1-one-command-launch)
-  - [Shell Environment Setup](#2-shell-environment-setup)
-  - [Claude Code Auto Mode & Classifier Billing](#3-claude-code-auto-mode--classifier-billing)
-- [🛠️ Installation with `uv`](#️-installation-with-uv)
-- [📋 Makefile Command Reference](#-makefile-command-reference)
-- [📐 Architecture](#-architecture)
-- [🧪 Testing & Verification](#-testing--verification)
-- [❓ Frequently Asked Questions (FAQ)](#-frequently-asked-questions-faq)
-- [🔒 Security & Privacy](#-security--privacy)
-- [📄 License](#-license)
+A high-performance local protocol gateway and inference server. Antiglaude Bridge translates Anthropic Messages and OpenAI Chat Completions requests into Google Cloud Code and Gemini execution formats, enabling Claude Code CLI and standard AI toolchains to operate against upstream models including `claude-sonnet-4-6`, `claude-opus-4-6-thinking`, `gemini-3-flash`, and `gemini-2.5-pro`.
 
 ---
 
-## ⚡ Quick Start in 1 Command
+## Contents
 
-No manual dependency setup required. With `make`, the environment is automatically prepared using [`uv`](https://github.com/astral-sh/uv) and started immediately:
+- [Overview](#overview)
+- [Quick Start](#quick-start)
+- [Terminal Control Panel](#terminal-control-panel)
+- [Claude Code Integration](#claude-code-integration)
+  - [In-Session Model Picker (/model)](#in-session-model-picker-model)
+  - [System-Wide Persistence](#system-wide-persistence)
+  - [Auto Mode Classifier Billing Protocol](#auto-mode-classifier-billing-protocol)
+- [Background Service (macOS launchd)](#background-service-macos-launchd)
+- [OpenAI Compatible API](#openai-compatible-api)
+  - [Python SDK](#python-sdk)
+  - [Streaming](#streaming)
+  - [HTTP Request](#http-request)
+  - [Model Directory](#model-directory)
+  - [Third-Party Integrations](#third-party-integrations)
+- [Architecture](#architecture)
+- [Makefile Reference](#makefile-reference)
+- [Testing](#testing)
+- [Security and Privacy](#security-and-privacy)
+- [License](#license)
+
+---
+
+## Overview
+
+Interfacing external developer tooling with enterprise cloud backends introduces protocol impedance mismatches:
+
+- **Token Expiration**: Upstream access tokens expire after 60 minutes. Antiglaude Bridge extracts permanent refresh credentials from local application state and transparently renews access tokens in the background.
+- **Protobuf Schema Incompatibilities**: Advanced JSON Schema keywords emitted by agentic runtimes (`propertyNames`, `anyOf`, `const`) cause HTTP 400 rejection in Google protobuf serializers. The bridge applies bidirectional AST normalizations to guarantee full tool calling compatibility.
+- **Header & Identity Filtering**: Third-party billing headers and self-identification banners trip strict upstream quota filters. The gateway neutralizes identity markers and scrubs unsupported metadata.
+- **Keep-Alive Resilience**: Long reasoning turns can trigger client connection drops. The gateway emits periodic SSE keep-alive heartbeats and handles TCP resets with pooled connection limits and instant retry failover.
+
+---
+
+## Quick Start
+
+The repository is configured for immediate execution via Astral's `uv` and GNU `make`. No manual virtual environment preparation is required:
 
 ```bash
-# Clone the repository
 git clone https://github.com/sksarvesh007/antiglaude-bridge.git
 cd antiglaude-bridge
 
-# 1-command launch: installs uv, sets up venv, installs dependencies, and starts the gateway
+# Bootstrap environment and start gateway on port 8080
 make start
-# or: make serve
 ```
 
-The gateway server starts at **`http://127.0.0.1:8080`**, ready to accept both **Anthropic** and **OpenAI** requests.
+To configure Claude Code system-wide and start the background daemon in one pass:
 
-To immediately launch an interactive **Claude Code CLI** session wired to the bridge:
 ```bash
-make claude
+make setup-claude
+make daemon-install
 ```
 
 ---
 
-## ✨ Core Capabilities
+## Terminal Control Panel
 
-- 🔄 **Dual Protocol Engine**:
-  - **Anthropic Messages API** (`/v1/messages`): Full streaming SSE & tool use for Claude Code CLI.
-  - **OpenAI Chat Completions API** (`/v1/chat/completions`): Drop-in OpenRouter-style inference for external AI apps, Python/TypeScript SDKs, LangChain, LlamaIndex, Cursor, and Continue.dev.
-- 🔑 **Zero-Touch Auto-Refresh Authentication**: Discovers local Antigravity/Cloud Code refresh credentials (`state.vscdb`) and automatically re-authenticates 1-hour OAuth access tokens before expiration.
-- 🛡️ **OpenAPI Protobuf Sanitizer**: Normalizes advanced JSON Schemas sent by Claude Code (`propertyNames`, `anyOf`, `const`) into Google-compatible Protobuf structures, preventing HTTP 400 schema errors.
-- ⏱️ **SSE Keep-Alive Watchdog**: Emits 15-second heartbeat pings to prevent client timeouts during multi-step reasoning turns.
-- 🎯 **Claude Code Auto-Mode Classifier Billing**: Implements the official protocol for `safeguards` and generates `safeguard_results`, preventing unnecessary billing prompts.
-- ⚡ **Blazing Fast `uv` Tooling**: Built from the ground up for Astral's `uv` for instantaneous environment setups and deterministic packaging.
+Antiglaude Bridge includes a terminal-based dashboard for real-time monitoring of daily request quotas, account identity, upstream latency, and inference logs.
+
+```bash
+make tui
+```
+
+```
++--------------------------------------------------------------------------------------------------------+
+| ANTIGLAUDE BRIDGE  |  ONLINE (http://127.0.0.1:8080)  |  Default: claude-sonnet-4-6  |  2026-11-04   |
++--------------------------------------------------------------------------------------------------------+
+| Upstream Authentication                    | Rate Limits & Quota Meter                                 |
+| Account:        user@antigravity           | Daily Limit:        1,500 reqs/day                        |
+| Project ID:     aicode-consumers           | Requests Today:     14 [==......................] 0.9%    |
+| Tier:           Google AI Pro              | Requests Remaining: 1,486                                 |
+| Service:        Active (launchd)           | Lifetime Requests:  248                                   |
+| Uptime:         1,840 seconds              | Tokens (In / Out):  104,200 / 14,800                      |
++--------------------------------------------+-----------------------------------------------------------+
+| Routing Matrix & Supported Models                                                                      |
+| Model Identifier           Target Backend                 Status      Requests  Description            |
+| > claude-sonnet-4-6        Claude 3.7 Sonnet (Thinking)   Active            12  Primary agentic engine |
+|   claude-opus-4-6-thinking Claude 3 Opus (Thinking)       Active             2  Deep reasoning & arch  |
+|   gemini-3-flash           Gemini 3 Flash                 Active             0  Low-latency throughput |
+|   gemini-2.5-pro           Gemini 2.5 Pro                 Active             0  Large context analysis |
++--------------------------------------------------------------------------------------------------------+
+| Request Journal & Latency Log                                                                          |
+| Time      Client       Endpoint             Model              Tokens    Latency  Status               |
+| 02:49:09  claude-code  /v1/messages         claude-sonnet-4-6  23,609    1820 ms  200                  |
++--------------------------------------------------------------------------------------------------------+
+| [r] Refresh   [m] Switch Model   [c] Run Claude   [s] Restart Server   [d] Daemon Manager   [q] Quit   |
++--------------------------------------------------------------------------------------------------------+
+```
+
+### Keybindings
+
+| Key | Action |
+| :--- | :--- |
+| `r` | Force refresh account tier, token status, and quota metrics |
+| `m` | Switch active default model in `~/.claude/settings.json` |
+| `c` | Launch interactive Claude Code session within the terminal |
+| `s` | Restart local gateway process and clear stale network sockets |
+| `d` | Open macOS LaunchAgent daemon management dialog |
+| `q` | Exit the dashboard |
 
 ---
 
-## 🌐 OpenRouter-Style OpenAI Endpoint (Build AI Apps)
+## Claude Code Integration
 
-Antiglaude Bridge acts as your own private local **OpenRouter**. Any tool or library that speaks the standard OpenAI API can point to `http://127.0.0.1:8080/v1` to execute inference across Google and Claude models without cloud API costs or rate-limit friction.
+### In-Session Model Picker (/model)
 
-### 1. Python OpenAI SDK
+Claude Code supports native model switching via the `/model` command when configured with a valid `modelPicker` manifest. Run:
+
+```bash
+make setup-claude
+```
+
+This writes the required schema to `~/.claude/settings.json`:
+
+```json
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://127.0.0.1:8080",
+    "ANTHROPIC_API_KEY": "test",
+    "CLAUDE_CODE_AUTO_MODE_SERVER": "0",
+    "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY": "1"
+  },
+  "model": "claude-sonnet-4-6",
+  "modelPicker": {
+    "replaceBuiltInOptions": false,
+    "options": [
+      {
+        "model": "claude-sonnet-4-6",
+        "label": "Claude Sonnet 4.6 (Thinking)",
+        "description": "Fast agentic reasoning via Antiglaude Bridge",
+        "behavesAs": "claude-3-7-sonnet"
+      },
+      {
+        "model": "claude-opus-4-6-thinking",
+        "label": "Claude Opus 4.6 (Thinking)",
+        "description": "Deep reasoning with extended thinking via Antiglaude Bridge",
+        "behavesAs": "claude-3-opus"
+      },
+      {
+        "model": "gemini-3-flash",
+        "label": "Gemini 3 Flash",
+        "description": "High-speed completions via Antiglaude Bridge",
+        "behavesAs": "claude-3-5-haiku"
+      },
+      {
+        "model": "gemini-2.5-pro",
+        "label": "Gemini 2.5 Pro",
+        "description": "Analytical large-context model via Antiglaude Bridge",
+        "behavesAs": "claude-3-7-sonnet"
+      }
+    ]
+  }
+}
+```
+
+Typing `/model` inside any Claude Code session displays the interactive selection menu with full keyboard navigation.
+
+### System-Wide Persistence
+
+The `make setup-claude` command sets configurations in `~/.claude/settings.json` and exports environment variables to `~/.zshrc`. After setup, you can launch Claude Code from any terminal or process without passing flags:
+
+```bash
+claude
+```
+
+### Auto Mode Classifier Billing Protocol
+
+Claude Code versions 2.1+ include an auto-mode classifier protocol. Local gateways that do not return structured safeguard evaluations trigger billing fallback warnings.
+
+Antiglaude Bridge resolves this through two complementary mechanisms:
+1. **Safeguard Protocol Handling**: The bridge parses the `safeguards` request parameter and returns structured `safeguard_results` matching Claude Code's internal schema (`dangerous_tool_use`, status `available`, outcome `not_flagged`).
+2. **Local Classifier Delegation**: `CLAUDE_CODE_AUTO_MODE_SERVER="0"` instructs the CLI harness to perform classifications locally without external billing queries.
+
+---
+
+## Background Service (macOS launchd)
+
+To run Antiglaude Bridge permanently in the background:
+
+```bash
+# Register and start launchd daemon
+make daemon-install
+```
+
+### Operational Characteristics
+- Installed to `~/Library/LaunchAgents/com.antiglaude.bridge.plist`.
+- Automatically loads on macOS login and runs continuously with `KeepAlive: true`.
+- Starts before Antigravity IDE or Claude Code CLI sessions open; port 8080 is always available.
+- Logs are written to `~/.antiglaude/bridge.stdout.log` and `~/.antiglaude/bridge.stderr.log`.
+
+```bash
+# Check status or inspect logs
+make daemon-status
+
+# Stop and unregister daemon
+make daemon-uninstall
+```
+
+---
+
+## OpenAI Compatible API
+
+Antiglaude Bridge provides a drop-in `/v1/chat/completions` endpoint for standard OpenAI SDKs and third-party AI frameworks.
+
+### Python SDK
 
 ```python
 from openai import OpenAI
 
-# Point to your local Antiglaude Bridge server
 client = OpenAI(
     base_url="http://127.0.0.1:8080/v1",
-    api_key="sk-antiglaude"  # Any string accepted
+    api_key="sk-antiglaude",
 )
 
 response = client.chat.completions.create(
     model="claude-sonnet-4-6",
     messages=[
-        {"role": "system", "content": "You are a concise engineering assistant."},
-        {"role": "user", "content": "What is the difference between a process and a thread?"}
-    ]
+        {"role": "system", "content": "You are a systems engineer."},
+        {"role": "user", "content": "Describe memory paging in one sentence."},
+    ],
 )
 
 print(response.choices[0].message.content)
 ```
 
-### 2. Streaming Example
+### Streaming
 
 ```python
 from openai import OpenAI
 
 client = OpenAI(
     base_url="http://127.0.0.1:8080/v1",
-    api_key="sk-antiglaude"
+    api_key="sk-antiglaude",
 )
 
 stream = client.chat.completions.create(
     model="claude-opus-4-6-thinking",
-    messages=[{"role": "user", "content": "Write a quick Python script to download an image."}],
-    stream=True
+    messages=[{"role": "user", "content": "Write a quicksort implementation in C."}],
+    stream=True,
 )
 
 for chunk in stream:
@@ -119,7 +260,7 @@ for chunk in stream:
     print(content, end="", flush=True)
 ```
 
-### 3. cURL Request
+### HTTP Request
 
 ```bash
 # Non-streaming
@@ -128,7 +269,7 @@ curl -X POST http://127.0.0.1:8080/v1/chat/completions \
   -H "Authorization: Bearer test" \
   -d '{
     "model": "claude-sonnet-4-6",
-    "messages": [{"role": "user", "content": "Explain Rust ownership in 1 line."}]
+    "messages": [{"role": "user", "content": "Ping"}]
   }'
 
 # Streaming
@@ -137,203 +278,113 @@ curl -N -X POST http://127.0.0.1:8080/v1/chat/completions \
   -H "Authorization: Bearer test" \
   -d '{
     "model": "gemini-3-flash",
-    "messages": [{"role": "user", "content": "Count from 1 to 5."}],
+    "messages": [{"role": "user", "content": "Count from 1 to 5"}],
     "stream": true
   }'
 ```
 
-### 4. Supported Model Codenames
+### Model Directory
 
-You can request any of the following models (or standard aliases):
-
-| Model Codename | Description | Upstream Target |
+| Model Identifier | Target Backend | Optimized Workload |
 | :--- | :--- | :--- |
-| `claude-sonnet-4-6` *(default)* | Fast, highly capable agentic reasoning | Claude 3.7 Sonnet |
-| `claude-opus-4-6-thinking` | Deep multi-step reasoning with extended thought chains | Claude 3 Opus / Thinking |
-| `gemini-3-flash` | Ultra-low latency, high-throughput completions | Gemini 3 Flash |
-| `gemini-2.5-pro` | Comprehensive analytical and large-context model | Gemini 2.5 Pro |
-| `claude-3-7-sonnet-latest` | Anthropic alias automatically routed | `claude-sonnet-4-6` |
-| `claude-3-5-haiku-latest` | Fast Anthropic alias automatically routed | `gemini-3-flash` |
+| `claude-sonnet-4-6` *(default)* | Claude 3.7 Sonnet | Agentic workflows, coding, tool calling |
+| `claude-opus-4-6-thinking` | Claude 3 Opus (Thinking) | Complex reasoning, mathematical analysis, architecture |
+| `gemini-3-flash` | Gemini 3 Flash | Low-latency completions, summaries, high concurrency |
+| `gemini-2.5-pro` | Gemini 2.5 Pro | Deep analytical processing, large-context windows |
+| `claude-3-7-sonnet-latest` | `claude-sonnet-4-6` | Anthropic alias fallback |
+| `claude-3-5-haiku-latest` | `gemini-3-flash` | Lightweight Anthropic alias fallback |
 
-*Note: Antiglaude Bridge includes an intelligent heuristic fallback mapper. Even if an AI app requests arbitrary codenames (like `claude-fable-5-1` or `gpt-4o`), the bridge automatically normalizes the request to the highest-performing active Google model.*
+*Heuristic Fallback: Any arbitrary model identifier requested by a client (such as `gpt-4o` or legacy strings) is mapped to the most capable active upstream model while returning the requested ID in the completion response.*
 
-### 5. Compatible Frameworks
+### Third-Party Integrations
 
-Easily configure popular developer tools to use Antiglaude Bridge:
+Configure your environment or client configuration:
 
-- **LangChain / LlamaIndex**: Set `openai_api_base="http://127.0.0.1:8080/v1"` and `openai_api_key="test"`.
-- **Cursor / Continue.dev**: Configure custom OpenAI provider with URL `http://127.0.0.1:8080/v1`.
+- **LangChain / LlamaIndex**: Set `base_url="http://127.0.0.1:8080/v1"`, `api_key="test"`.
+- **Cursor / Continue.dev**: Add custom OpenAI provider pointing to `http://127.0.0.1:8080/v1`.
 - **AutoGen / CrewAI**: Set `base_url="http://127.0.0.1:8080/v1"`.
 
 ---
 
-## 💻 Claude Code Integration
+## Architecture
 
-### 1. One-Command Launch
-
-Launch Claude Code with environment variables pre-configured in a single command:
-
-```bash
-# Interactive Claude Code session
-make claude
-
-# Run a headless task directly
-make claude ARGS="-p 'Review the latest commit and run tests'"
 ```
-
-### 2. Shell Environment Setup
-
-To use Claude Code normally in any terminal window, add the following to your `~/.zshrc` or `~/.bashrc`:
-
-```bash
-# Claude Code -> Antiglaude Bridge
-export ANTHROPIC_BASE_URL="http://127.0.0.1:8080"
-export ANTHROPIC_API_KEY="test"
-
-# Optional: Disable external auto-mode classifier requests
-export CLAUDE_CODE_AUTO_MODE_SERVER="0"
-```
-
-Then simply start the bridge and run Claude:
-```bash
-make serve &
-claude
-```
-
-### 3. Claude Code Auto Mode & Classifier Billing
-
-In Claude Code, "Auto Mode" runs background classifier checks. When using local gateways, Claude Code displays a warning if the gateway does not implement the auto-mode classifier protocol:
-
-```text
-We're changing auto mode to no longer charge for classifier requests in Claude Code.
-However, this session isn't eligible because your requests go through 127.0.0.1:8080...
-```
-
-**Antiglaude Bridge fully resolves this:**
-1. **Safeguard Protocol Handling**: The bridge recognizes the `safeguards` request parameter and returns structured `safeguard_results` (`dangerous_tool_use`, status `available`, outcome `not_flagged`) on every tool execution turn.
-2. **Offline Classifier Bypass**: Setting `export CLAUDE_CODE_AUTO_MODE_SERVER="0"` instructs Claude Code to handle classifications locally without querying external billing classifiers.
-
----
-
-## 🛠️ Installation with `uv`
-
-If you prefer to manage the environment manually using `uv`:
-
-```bash
-# 1. Install uv (if not already installed)
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# 2. Clone the repository
-git clone https://github.com/sksarvesh007/antiglaude-bridge.git
-cd antiglaude-bridge
-
-# 3. Create virtual environment and install dependencies
-uv venv
-source .venv/bin/activate
-uv pip install -e .
-
-# 4. Check token & account health
-antiglaude status
-
-# 5. Start the server
-antiglaude serve --port 8080
++----------------------------------+     +----------------------------------+
+|         Claude Code CLI          |     |      OpenAI Compatible SDKs      |
+|    Anthropic Messages Protocol   |     |    LangChain, Cursor, Continue   |
++-----------------+----------------+     +-----------------+----------------+
+                  |                                        |
+                  | POST /v1/messages                      | POST /v1/chat/completions
+                  +-------------------+--------------------+
+                                      |
+                                      v
++---------------------------------------------------------------------------+
+|                         Antiglaude Bridge Gateway                         |
+|                                                                           |
+|   [Anthropic SSE Parser]                 [OpenAI Request/Response Bridge] |
+|   - Stream chunk normalizer              - SSE event-to-chunk mapper      |
+|   - Safeguard result emitter             - Token usage synthesizer        |
+|                                                                           |
+|   [Protocol & Schema Transformation]                                      |
+|   - OpenAPI-to-Protobuf schema sanitizer (strips propertyNames, anyOf)    |
+|   - System turn extraction & identity scrubber                            |
+|                                                                           |
+|   [Authentication & Reliability]                                          |
+|   - Zero-touch OAuth token auto-refresher (permanent refresh credentials) |
+|   - Rate-limit backoff engine & TCP keep-alive heartbeat watchdog         |
+|   - Live telemetry journal & 1,500 daily quota tracking meter             |
++-------------------------------------+-------------------------------------+
+                                      |
+                                      | Cloud Code REST / Protobuf
+                                      v
++---------------------------------------------------------------------------+
+|                  Google Cloud Code / Gemini Inference API                 |
+|   Claude Sonnet 4.6 (Thinking)         Gemini 3 Flash                     |
+|   Claude Opus 4.6 (Thinking)           Gemini 2.5 Pro                     |
++---------------------------------------------------------------------------+
 ```
 
 ---
 
-## 📋 Makefile Command Reference
+## Makefile Reference
 
 | Target | Description | Example |
 | :--- | :--- | :--- |
-| `make start` | Automatically configures dependencies with `uv` and runs the gateway | `make start` |
-| `make serve` | Alias for `make start` (serves on port 8080) | `make serve PORT=8080` |
-| `make claude` | Starts interactive Claude Code CLI connected to the bridge | `make claude` |
-| `make status` | Inspects local Antigravity state, token health, and project tier | `make status` |
-| `make test` | Installs test harness and executes test suite | `make test` |
-| `make stop` | Finds and terminates any process listening on the configured port | `make stop PORT=8080` |
-| `make clean` | Cleans `.venv`, pycache, build artifacts, and test caches | `make clean` |
+| `make start` | Installs dependencies with `uv` and starts the gateway | `make start` |
+| `make serve` | Alias for `make start` | `make serve PORT=8080` |
+| `make tui` | Opens the terminal control panel | `make tui` |
+| `make setup-claude` | Configures `~/.claude/settings.json` and `/model` menu | `make setup-claude` |
+| `make daemon-install` | Installs and loads macOS LaunchAgent service | `make daemon-install` |
+| `make daemon-status` | Displays LaunchAgent process status and log output | `make daemon-status` |
+| `make daemon-uninstall` | Stops and unregisters the LaunchAgent service | `make daemon-uninstall` |
+| `make claude` | Starts Claude Code CLI routed through the local bridge | `make claude` |
+| `make status` | Verifies token validity and upstream account resolution | `make status` |
+| `make test` | Executes the test harness | `make test` |
+| `make stop` | Terminates processes listening on the configured port | `make stop PORT=8080` |
+| `make clean` | Removes virtual environment, build artifacts, and cache | `make clean` |
 
 ---
 
-## 📐 Architecture
+## Testing
 
-```
-┌─────────────────────────────┐         ┌─────────────────────────────┐
-│       Claude Code CLI       │         │    External AI / OpenAI     │
-│   (Anthropic Protocol)      │         │     (LangChain, SDKs)       │
-└──────────────┬──────────────┘         └──────────────┬──────────────┘
-               │ POST /v1/messages                     │ POST /v1/chat/completions
-               ▼                                       ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                      Antiglaude Bridge Gateway                      │
-│                                                                     │
-│  ┌─────────────────────────────┐     ┌───────────────────────────┐  │
-│  │   Anthropic SSE Translator  │     │  OpenAI Compatibility     │  │
-│  │   & Safeguard Generator     │     │  Request/Response Parser  │  │
-│  └──────────────┬──────────────┘     └──────────────┬────────────┘  │
-│                 └──────────────────┬────────────────┘               │
-│                                    ▼                                │
-│  ┌───────────────────────────────────────────────────────────────┐  │
-│  │ OpenAPI Protobuf Schema Sanitizer (strips propertyNames, etc)│  │
-│  ├───────────────────────────────────────────────────────────────┤  │
-│  │ Auto-Refreshing Token Manager (permanent refresh via state.db) │  │
-│  ├───────────────────────────────────────────────────────────────┤  │
-│  │ Keep-Alive Watchdog Engine (15s heartbeat pings)              │  │
-│  └───────────────────────────────┬───────────────────────────────┘  │
-└──────────────────────────────────┼──────────────────────────────────┘
-                                   │ Google Cloud Code REST / Protobuf
-                                   ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│               Google Antigravity & Gemini Inference API             │
-│   • Claude Sonnet 4.6 (Thinking)      • Gemini 3 Flash              │
-│   • Claude Opus 4.6 (Thinking)        • Gemini 2.5 Pro              │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 🧪 Testing & Verification
-
-Antiglaude Bridge includes an automated test suite verifying protocol translation, schema sanitization, OpenAI endpoint compatibility, and streaming events:
+The test harness validates protocol conversions, schema sanitization, streaming event framing, and endpoint compatibility:
 
 ```bash
-# Run tests with make (auto-installs test packages with uv)
 make test
 ```
 
-Verified test suites:
-- `tests/test_openai_endpoint.py`: Validates `/v1/chat/completions` non-streaming and streaming chunk generation.
-- `tests/test_schema_sanitizer.py`: Tests `propertyNames` removal, `const` to `enum` conversions, `anyOf`/`allOf` flattening, and protobuf type normalization.
-- `tests/test_request_converter.py`: Tests identity scrubbers, billing header stripping, and model alias mappings.
-- `tests/test_response_converter.py`: Tests Google SSE chunk parsing, thinking deltas, tool call events, and token usage metadata.
-- `tests/test_server_endpoints.py`: Tests `/health`, `/v1/models`, and token counters.
+All 18 unit tests execute in isolated test environments without consuming upstream inference quota.
 
 ---
 
-## ❓ Frequently Asked Questions (FAQ)
+## Security and Privacy
 
-### Can I build custom web apps or agents with this?
-**Yes.** Antiglaude Bridge exposes an OpenAI-compatible `/v1/chat/completions` endpoint. Any standard OpenAI client, agent framework, or backend can make streaming or non-streaming requests simply by setting `base_url="http://127.0.0.1:8080/v1"`.
-
-### How does token authentication work?
-Antiglaude Bridge locates the local state database created when you log into Google Antigravity or Google Cloud Code. It retrieves the OAuth refresh token and automatically requests fresh 1-hour access tokens from Google OAuth servers before expiry. You never need to copy-paste API keys or worry about 60-minute token expiration.
-
-### Does this require modifying Google Antigravity?
-**No.** Antiglaude Bridge is completely non-invasive. It reads local configuration databases in read-only mode, without patching any files in Antigravity or VS Code.
-
-### Does it work with Claude Code's agentic tools?
-**Yes.** All 28 Claude Code tools (`Bash`, `Edit`, `Read`, `Write`, `Glob`, `Grep`, etc.) are fully supported and verified through the schema sanitizer.
+- **Local Execution**: The gateway binds exclusively to loopback (`127.0.0.1`).
+- **No Third-Party Telemetry**: Traffic flows directly between local clients and the configured Google infrastructure.
+- **Credential Hygiene**: Local state databases, OAuth tokens, and log directories are excluded from version control via `.gitignore`.
 
 ---
 
-## 🔒 Security & Privacy
-
-- **100% Local**: The gateway runs strictly on your machine (`127.0.0.1`).
-- **No Secret Leakage**: Credentials, tokens, databases, logs, and sensitive paths are permanently excluded from version control via `.gitignore`.
-- **Zero Third-Party Telemetry**: Requests flow directly between your local client and the official Google endpoints.
-
----
-
-## 📄 License
+## License
 
 MIT License. See [LICENSE](LICENSE) for details.

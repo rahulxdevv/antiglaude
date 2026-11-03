@@ -31,6 +31,7 @@ from gateway.translation.openai_converter import (
     transform_anthropic_sse_to_openai,
 )
 from gateway.translation.response_converter import StreamParser
+from gateway.telemetry.stats_tracker import stats_tracker
 
 
 # Configure logging
@@ -77,6 +78,13 @@ async def health_check():
         }
 
 
+@app.get("/v1/gateway/stats")
+@app.get("/stats")
+async def get_gateway_stats():
+    """Get live telemetry, usage statistics, and quota counters."""
+    return stats_tracker.get_snapshot()
+
+
 @app.get("/v1/models")
 async def list_models(
     limit: Optional[int] = Query(default=1000),
@@ -89,36 +97,37 @@ async def list_models(
         ModelItem(
             id="claude-sonnet-4-6",
             display_name="Claude Sonnet 4.6 (Thinking)",
+            description="High-speed agentic reasoning via Antiglaude Bridge",
             created=1738000000,
         ),
         ModelItem(
             id="claude-opus-4-6-thinking",
             display_name="Claude Opus 4.6 (Thinking)",
+            description="Deep multi-step reasoning with extended thought chains via Antiglaude Bridge",
             created=1738000000,
         ),
         ModelItem(
             id="claude-3-7-sonnet-20250219",
             display_name="Claude 3.7 Sonnet (Alias)",
+            description="Standard Anthropic alias routed to Sonnet 4.6",
             created=1738000000,
         ),
         ModelItem(
             id="claude-3-5-sonnet-20241022",
             display_name="Claude 3.5 Sonnet (Alias)",
+            description="Standard Anthropic alias routed to Sonnet 4.6",
             created=1738000000,
         ),
         ModelItem(
             id="gemini-3-flash",
             display_name="Gemini 3 Flash",
-            created=1738000000,
-        ),
-        ModelItem(
-            id="gemini-3.5-flash-lite",
-            display_name="Gemini 3.5 Flash Lite",
+            description="Ultra-low latency, high throughput via Antiglaude Bridge",
             created=1738000000,
         ),
         ModelItem(
             id="gemini-2.5-pro",
             display_name="Gemini 2.5 Pro",
+            description="Large-context analytical model via Antiglaude Bridge",
             created=1738000000,
         ),
     ]
@@ -147,10 +156,24 @@ async def create_message(
     conversation_id = x_claude_code_session_id or "claude-session"
 
     def record_telemetry(in_tok: int, out_tok: int, status_code: int = 200):
+        latency = (time.time() - start_time) * 1000.0
+        try:
+            stats_tracker.record_request(
+                endpoint="/v1/messages",
+                model=request.model,
+                input_tokens=in_tok,
+                output_tokens=out_tok,
+                latency_ms=latency,
+                status_code=status_code,
+                stream=request.stream,
+                client="claude-code",
+            )
+        except Exception as ste:
+            logger.debug("Failed recording stats tracker: %s", ste)
+
         try:
             from antigravity_observer.storage.observer_db import ObserverDatabase
             db = ObserverDatabase()
-            latency = (time.time() - start_time) * 1000.0
             db.record_request({
                 "trace_id": trace_id,
                 "conversation_id": conversation_id,
@@ -251,10 +274,24 @@ async def chat_completions(request: OpenAIChatCompletionRequest):
     trace_id = f"trace-oa-{uuid.uuid4().hex[:16]}"
 
     def record_oa_telemetry(in_tok: int, out_tok: int, status_code: int = 200):
+        latency = (time.time() - start_time) * 1000.0
+        try:
+            stats_tracker.record_request(
+                endpoint="/v1/chat/completions",
+                model=request.model,
+                input_tokens=in_tok,
+                output_tokens=out_tok,
+                latency_ms=latency,
+                status_code=status_code,
+                stream=request.stream,
+                client="openai-compat",
+            )
+        except Exception as ste:
+            logger.debug("Failed recording stats tracker: %s", ste)
+
         try:
             from antigravity_observer.storage.observer_db import ObserverDatabase
             db = ObserverDatabase()
-            latency = (time.time() - start_time) * 1000.0
             db.record_request({
                 "trace_id": trace_id,
                 "conversation_id": "openai-session",
