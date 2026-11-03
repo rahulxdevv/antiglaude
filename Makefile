@@ -75,7 +75,7 @@ build: setup
 
 # Verify built packages with twine
 check-dist: build
-	@$(UV) run twine check dist/*
+	@$(UV)x twine check dist/*
 
 # Clean temporary files and caches
 clean:

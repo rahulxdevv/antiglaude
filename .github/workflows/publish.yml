@@ -59,7 +59,7 @@ jobs:
         run: uv build
 
       - name: Verify distribution archives
-        run: uv run twine check dist/*
+        run: uvx twine check dist/*
 
       - name: Publish to PyPI (API Token)
         if: env.PYPI_API_TOKEN != ''
