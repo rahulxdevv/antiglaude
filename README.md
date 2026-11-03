@@ -1,6 +1,6 @@
 # Antiglaude
 
-[![PyPI](https://img.shields.io/pypi/v/antiglaude?color=111111)](https://pypi.org/project/antiglaude/)
+[![PyPI](https://img.shields.io/pypi/v/antiglaude?label=pypi&color=111111)](https://pypi.org/project/antiglaude/)
 [![CI](https://github.com/sksarvesh007/antiglaude/actions/workflows/ci.yml/badge.svg)](https://github.com/sksarvesh007/antiglaude/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/sksarvesh007/antiglaude?color=111111)](https://github.com/sksarvesh007/antiglaude/releases)
 [![Python](https://img.shields.io/badge/python-3.10+-111111.svg)](https://www.python.org/downloads/)
