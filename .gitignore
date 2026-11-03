@@ -59,6 +59,8 @@ token.json
 session.json
 *secret*
 *credential*
+!credentials.example.json
+
 
 # OS / Editor
 .DS_Store
