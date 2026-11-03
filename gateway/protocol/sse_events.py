@@ -96,3 +96,15 @@ def message_stop_event() -> str:
 def ping_event() -> str:
     """Build ping keep-alive SSE event."""
     return format_sse("ping", {"type": "ping"})
+
+
+def error_event(message: str, error_type: str = "api_error") -> str:
+    """Build error SSE event."""
+    data = {
+        "type": "error",
+        "error": {
+            "type": error_type,
+            "message": message,
+        },
+    }
+    return format_sse("error", data)

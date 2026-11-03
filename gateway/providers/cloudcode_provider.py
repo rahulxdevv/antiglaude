@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import ssl
 from typing import AsyncGenerator, Dict, List, Optional
 
 import httpx
@@ -15,7 +16,7 @@ from gateway.protocol.anthropic_models import (
     AnthropicMessagesResponse,
     UsageMetadata,
 )
-from gateway.protocol.sse_events import ping_event
+from gateway.protocol.sse_events import error_event, ping_event
 from gateway.providers.base import BaseProvider
 from gateway.reliability.backoff import calculate_backoff, parse_retry_after
 from gateway.translation.request_converter import convert_anthropic_to_cloudcode
@@ -82,8 +83,9 @@ class CloudCodeProvider(BaseProvider):
                 try:
                     logger.debug("Requesting %s (attempt %d)", endpoint_url, attempt + 1)
                     timeout = httpx.Timeout(connect=15.0, read=120.0, write=30.0, pool=30.0)
+                    limits = httpx.Limits(max_keepalive_connections=5, max_connections=10, keepalive_expiry=5.0)
 
-                    async with httpx.AsyncClient(timeout=timeout) as client:
+                    async with httpx.AsyncClient(timeout=timeout, limits=limits) as client:
                         async with client.stream(
                             "POST",
                             endpoint_url,
@@ -99,14 +101,14 @@ class CloudCodeProvider(BaseProvider):
                             if response.status_code == 429:
                                 err_text = await response.aread()
                                 wait_sec = parse_retry_after(err_text.decode("utf-8", errors="ignore"))
-                                logger.warning("Received 429 RESOURCE_EXHAUSTED, waiting %.1fs", wait_sec)
+                                logger.warning("Received 429 RESOURCE_EXHAUSTED on %s, waiting %.1fs", endpoint_url, wait_sec)
                                 await asyncio.sleep(wait_sec)
                                 continue
 
                             if response.status_code != 200:
                                 err_body = await response.aread()
                                 err_msg = err_body.decode("utf-8", errors="ignore")[:300]
-                                logger.error("Upstream error %d: %s", response.status_code, err_msg)
+                                logger.error("Upstream error %d on %s: %s", response.status_code, endpoint_url, err_msg)
                                 last_error = RuntimeError(f"Upstream returned {response.status_code}: {err_msg}")
                                 continue
 
@@ -133,14 +135,31 @@ class CloudCodeProvider(BaseProvider):
                                 yield ev
                             return
 
-                except (httpx.ConnectError, httpx.ReadTimeout, httpx.RemoteProtocolError) as e:
+                except (
+                    httpx.TransportError,
+                    httpx.RequestError,
+                    ConnectionResetError,
+                    BrokenPipeError,
+                    ssl.SSLError,
+                    OSError,
+                ) as e:
                     last_error = e
-                    logger.warning("Stream network error on %s: %s", endpoint_url, e)
+                    logger.warning("Stream network / TCP reset on %s: %s", endpoint_url, e)
+                    if parser.has_emitted_start:
+                        # Client has already received stream start; emit spec-compliant error event
+                        yield error_event(f"Upstream connection reset by peer: {e}")
+                        return
+                    # Otherwise, haven't emitted events to client yet; continue to next endpoint/retry
+                    continue
 
             # Backoff before retrying attempt
             backoff_sec = calculate_backoff(attempt)
             logger.info("Retrying stream in %.2fs (attempt %d/%d)", backoff_sec, attempt + 1, max_retries)
             await asyncio.sleep(backoff_sec)
+
+        if parser.has_emitted_start:
+            yield error_event(str(last_error or "Failed to complete stream after retries"))
+            return
 
         raise last_error or RuntimeError("Failed to complete stream after retries")
 
