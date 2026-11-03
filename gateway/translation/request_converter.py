@@ -20,16 +20,46 @@ ANTIGRAVITY_SYSTEM_INSTRUCTION = (
 )
 
 
+VALID_GOOGLE_MODELS = {
+    "claude-sonnet-4-6",
+    "claude-opus-4-6-thinking",
+    "gemini-3-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-2.5-pro",
+    "gemini-2.5-flash",
+}
+
+
 def map_model_name(requested_model: str, config=DEFAULT_CONFIG) -> Tuple[str, str]:
     """Map requested model ID to canonical backend model and determine model family."""
-    canonical = config.model_aliases.get(requested_model, requested_model)
-    lower = canonical.lower()
-    if "claude" in lower:
+    if not requested_model:
+        return config.default_model, "claude"
+
+    if requested_model in config.model_aliases:
+        canonical = config.model_aliases[requested_model]
+    elif requested_model in VALID_GOOGLE_MODELS:
+        canonical = requested_model
+    else:
+        lower = requested_model.lower()
+        if "opus" in lower:
+            canonical = "claude-opus-4-6-thinking"
+        elif "haiku" in lower or "flash" in lower:
+            canonical = "gemini-3-flash"
+        elif "gemini" in lower:
+            canonical = "gemini-2.5-pro" if "pro" in lower else "gemini-3-flash"
+        elif "claude" in lower or "sonnet" in lower or "fable" in lower:
+            canonical = "claude-sonnet-4-6"
+        else:
+            canonical = config.default_model
+
+    lower_canonical = canonical.lower()
+    if "claude" in lower_canonical:
         family = "claude"
-    elif "gemini" in lower:
+    elif "gemini" in lower_canonical:
         family = "gemini"
     else:
-        family = "claude" if "claude" in requested_model.lower() else "gemini"
+        family = "claude"
+
     return canonical, family
 
 
@@ -174,6 +204,21 @@ def convert_anthropic_to_cloudcode(
                     if clean_sys:
                         system_parts.append({"text": scrub_client_identity(clean_sys)})
 
+    # Extract any in-message system instructions (e.g. Claude Code session initialization)
+    for msg in cleaned_messages:
+        if msg.get("role") in ("system", "developer"):
+            content = msg.get("content", "")
+            if isinstance(content, str):
+                clean_sys = strip_billing_header(content)
+                if clean_sys:
+                    system_parts.append({"text": scrub_client_identity(clean_sys)})
+            elif isinstance(content, list):
+                for block in content:
+                    if isinstance(block, dict) and block.get("type") == "text":
+                        clean_sys = strip_billing_header(block.get("text", ""))
+                        if clean_sys:
+                            system_parts.append({"text": scrub_client_identity(clean_sys)})
+
     # Hint for Claude interleaved thinking with tools
     if is_claude and req.tools:
         system_parts.append({
@@ -183,13 +228,23 @@ def convert_anthropic_to_cloudcode(
             )
         })
 
-    # 3. Build contents
+    # 3. Build contents (filtering out system roles and merging same-role turns)
     contents: List[Dict[str, Any]] = []
     for msg in cleaned_messages:
         role = msg.get("role", "user")
+        if role in ("system", "developer"):
+            continue
+
         google_role = "model" if role in ("assistant", "model") else "user"
         parts = convert_content_to_parts(msg.get("content", ""), is_claude=is_claude, is_gemini=is_gemini)
-        contents.append({"role": google_role, "parts": parts})
+
+        if contents and contents[-1]["role"] == google_role:
+            contents[-1]["parts"].extend(parts)
+        else:
+            contents.append({"role": google_role, "parts": parts})
+
+    if not contents:
+        contents.append({"role": "user", "parts": [{"text": "Hello"}]})
 
     # 4. Generation Config
     generation_config: Dict[str, Any] = {

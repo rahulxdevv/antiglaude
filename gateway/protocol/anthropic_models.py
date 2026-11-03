@@ -75,8 +75,8 @@ ContentBlock = Union[
 class Message(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-    role: Literal["user", "assistant", "model"]
-    content: Union[str, List[ContentBlock]]
+    role: str = "user"
+    content: Union[str, List[ContentBlock], Dict[str, Any], Any] = ""
 
 
 class AnthropicMessagesRequest(BaseModel):
