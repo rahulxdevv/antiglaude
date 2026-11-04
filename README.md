@@ -82,6 +82,9 @@ antiglaude setup-claude
 antiglaude daemon install
 ```
 
+### TUI 
+<img width="1280" height="802" alt="image" src="https://github.com/user-attachments/assets/5ca37c25-7bf8-43fc-a2ce-d2e779bc7801" />
+
 ### Option B: Clone from Source
 
 For development or direct Makefile execution via Astral's `uv`:
